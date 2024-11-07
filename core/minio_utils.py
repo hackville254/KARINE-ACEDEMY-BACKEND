@@ -140,3 +140,5 @@ def upload_static_files_to_minio():
                     content_type="application/octet-stream"  # Ajustez selon le type de fichier
                 )
             print(f"Fichier {file_name} téléchargé avec succès dans MinIO.")
+            
+upload_static_files_to_minio()
