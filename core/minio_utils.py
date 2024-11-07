@@ -1,3 +1,4 @@
+import os
 import uuid
 from django.conf import settings
 from minio import Minio
@@ -113,3 +114,29 @@ def test_minio_connection():
 
 # Exécuter le test
 test_minio_connection()
+
+
+def upload_static_files_to_minio():
+    static_root = settings.STATIC_ROOT
+    bucket_name = settings.MINIO_BUCKET_STATIC
+
+    # Créer le bucket s'il n'existe pas
+    if not minio_client.bucket_exists(bucket_name):
+        minio_client.make_bucket(bucket_name)
+
+    # Parcourir les fichiers dans STATIC_ROOT
+    for root, dirs, files in os.walk(static_root):
+        for file in files:
+            file_path = os.path.join(root, file)
+            file_name = os.path.relpath(file_path, static_root)  # Chemin relatif pour conserver la hiérarchie
+
+            # Télécharger le fichier dans le bucket
+            with open(file_path, 'rb') as f:
+                minio_client.put_object(
+                    bucket_name,
+                    file_name,
+                    f,
+                    length=os.path.getsize(file_path),
+                    content_type="application/octet-stream"  # Ajustez selon le type de fichier
+                )
+            print(f"Fichier {file_name} téléchargé avec succès dans MinIO.")

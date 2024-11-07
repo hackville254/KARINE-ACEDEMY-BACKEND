@@ -10,6 +10,7 @@ For the full list of settings and their values, see
 https://docs.djangoproject.com/en/5.1/ref/settings/
 """
 
+import os
 from pathlib import Path
 from decouple import config
 
@@ -141,9 +142,6 @@ USE_TZ = True
 # https://docs.djangoproject.com/en/5.1/howto/static-files/
 
 
-# URL de base pour accéder aux fichiers statiques (CSS, JavaScript, images)
-STATIC_URL = '/static/'
-MEDIA_URL = '/media/'
 # Indique les répertoires dans lesquels Django recherchera les fichiers statiques
 # Dans ce cas, nous ajoutons le répertoire 'static' à la racine du projet
 STATICFILES_DIRS = [BASE_DIR / 'static']
@@ -154,9 +152,14 @@ MINIO_ACCESS_KEY = "O8xlRP5wdXGKp3GmtL0j"
 MINIO_SECRET_KEY = "ynz3HrJKTWwrBpfog5wwoVi31sZsHinNPVc86tGQ"
 MINIO_IMAGE_BUCKET_NAME = "media"
 MINIO_VIDEO_BUCKET_NAME = "media"
+MINIO_BUCKET_STATIC = "static"
 MINIO_USE_SSL = True  # Utilisez True pour les connexions sécurisées
 
-
+# URL de base pour accéder aux fichiers statiques (CSS, JavaScript, images)
+STATIC_URL = f"http://{MINIO_ENDPOINT}/{MINIO_BUCKET_STATIC}/"
+MEDIA_URL = '/media/'
+# Dossier temporaire pour collecter les fichiers statiques avant de les envoyer à MinIO
+STATIC_ROOT = os.path.join(BASE_DIR, "staticfiles")
 # https://docs.djangoproject.com/en/5.1/ref/settings/#default-auto-field
 
 
