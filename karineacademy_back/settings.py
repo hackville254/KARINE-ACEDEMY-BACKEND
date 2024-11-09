@@ -107,8 +107,7 @@ JAZZMIN_SETTINGS = {
     "site_brand": "Karine Academy",
     "site_logo": "logo.jpg",
     "login_logo": True,
-    "login_logo": False,
-    "site_icon": None,
+    "site_icon": "logo.ico",
     "welcome_sign": "Bienvenue sur Karine Academy",
     "copyright": " Weblease",
 }
