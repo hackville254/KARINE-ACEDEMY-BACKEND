@@ -105,10 +105,12 @@ JAZZMIN_SETTINGS = {
     "site_title": "Karine Academy Admin",
     "site_header": "Karine Academy",
     "site_brand": "Karine Academy",
+    "site_logo": "logo.jpg",
+    "login_logo": True,
     "login_logo": False,
     "site_icon": None,
     "welcome_sign": "Bienvenue sur Karine Academy",
-    "copyright": " Karine Academy",
+    "copyright": " Weblease",
 }
 
 
