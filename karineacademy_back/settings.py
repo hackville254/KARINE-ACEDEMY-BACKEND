@@ -26,13 +26,29 @@ SECRET_KEY = 'django-insecure-axyblbh1clq8zq$@uji#ks*#1ait2)hk)ko#qp8-welr2__2al
 
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = False
+if DEBUG:
+    ALLOWED_HOSTS = ["*"]
+    CORS_ALLOW_ALL_ORIGINS = True
 
-ALLOWED_HOSTS = ["*"]
-CORS_ALLOW_ALL_ORIGINS = True
-
-CORS_ALLOWED_ORIGINS = [
-    "http://*","https://*"  # Remplacez ceci par l'origine de votre front-end si nécessaire
-]
+    CORS_ALLOWED_ORIGINS = [
+        "http://*","https://*"  # Remplacez ceci par l'origine de votre front-end si nécessaire
+    ]
+else:
+    ALLOWED_HOSTS = ['*']
+    # SECURITY WARNING: keep the secret key used in production secret!
+    SECURE_PROXY_SSL_HEADER = ("HTTP_X_FORWARDED_PROTO", "https")
+    SECURE_HSTS_SECONDS = 3600  # Set the desired value in seconds
+    SECURE_SSL_REDIRECT = True
+    SESSION_COOKIE_SECURE = True
+    CSRF_COOKIE_SECURE = True
+    SECURE_HSTS_INCLUDE_SUBDOMAINS = True
+    SECURE_HSTS_PRELOAD = True
+    DATABASES = {
+        'default': {
+            'ENGINE': 'django.db.backends.sqlite3',
+            'NAME': BASE_DIR / 'db.sqlite3',
+        }
+    }
 # Application definition
 
 INSTALLED_APPS = [
@@ -144,7 +160,6 @@ USE_TZ = True
 
 # Indique les répertoires dans lesquels Django recherchera les fichiers statiques
 # Dans ce cas, nous ajoutons le répertoire 'static' à la racine du projet
-STATICFILES_DIRS = [BASE_DIR / 'static']
 
 # Paramètres de connexion à votre instance MinIO
 MINIO_ENDPOINT = "karine-academy-bucket-karine.hegely.easypanel.host"
@@ -155,11 +170,23 @@ MINIO_VIDEO_BUCKET_NAME = "media"
 MINIO_BUCKET_STATIC = "static"
 MINIO_USE_SSL = True  # Utilisez True pour les connexions sécurisées
 
-# URL de base pour accéder aux fichiers statiques (CSS, JavaScript, images)
-STATIC_URL = f"http://{MINIO_ENDPOINT}/{MINIO_BUCKET_STATIC}/"
+# Emplacement des fichiers statiques
+STATIC_URL = 'static/'
+
+# Dossier où collecter tous les fichiers statiques (CSS, JS, images, etc.)
+STATIC_ROOT = BASE_DIR / 'www'
+
+# Emplacements supplémentaires pour rechercher les fichiers statiques
+STATICFILES_DIRS = [
+    'static',
+]
+STATICFILES_FINDERS = [
+    'django.contrib.staticfiles.finders.FileSystemFinder',
+    'django.contrib.staticfiles.finders.AppDirectoriesFinder',
+]
+
 MEDIA_URL = '/media/'
 # Dossier temporaire pour collecter les fichiers statiques avant de les envoyer à MinIO
-STATIC_ROOT = os.path.join(BASE_DIR, "staticfiles")
 # https://docs.djangoproject.com/en/5.1/ref/settings/#default-auto-field
 
 

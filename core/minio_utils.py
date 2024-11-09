@@ -141,4 +141,4 @@ def upload_static_files_to_minio():
                 )
             print(f"Fichier {file_name} téléchargé avec succès dans MinIO.")
             
-upload_static_files_to_minio()
+#upload_static_files_to_minio()
