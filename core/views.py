@@ -1,10 +1,13 @@
 from datetime import timezone
+import json
 from typing import List
-
+import requests
+from decouple import config
 from django.http import Http404
 from django.shortcuts import get_object_or_404
-from core.models import Formation, UserFormationPurchase
-from core.schemas import FormationDetailSchema, FormationResponseSchema, FormationSchema, ModuleSchema, RegisterSchema, LoginSchema
+from core.models import Formation, Payment, UserFormationPurchase
+from core.schemas import FormationDetailSchema, FormationResponseSchema, FormationSchema, ModuleSchema, PaymentSchema, RegisterSchema, LoginSchema
+from core.utils import get_currency_by_country
 from .jwt_utils import create_token, verify_token
 from django.contrib.auth.models import User
 from ninja import Router
@@ -43,7 +46,7 @@ def login(request, data: LoginSchema):
         # Créer le token d'accès
         access_token = create_token({"id": user.id, "email": user.email})
 
-        return 200, {"access_token": access_token, "name": user.username,"id":user.id}
+        return 200, {"access_token": access_token, "name": user.username, "id": user.id}
     except User.DoesNotExist:
         return 401, {"detail": "Utilisateur non trouvé"}
 
@@ -62,7 +65,7 @@ def get_formations(request):
 
         # Formater les données dans le style souhaité
         formatted_course = {
-            "id":formation.id,
+            "id": formation.id,
             "title": formation.title,
             "price": f"{formation.price}",
             "lessons": f"{video_count} Leçons",
@@ -76,7 +79,6 @@ def get_formations(request):
     return formatted_courses
 
 
-
 @router.get("/formations/{formation_id}", response=FormationResponseSchema)
 def get_formation_by_id(request, formation_id: int):
     try:
@@ -87,14 +89,17 @@ def get_formation_by_id(request, formation_id: int):
         video_count = formation.videos.count() if hasattr(formation, 'videos') else 0
 
         # Ensure that content is properly converted to string (in case it's a rich text field)
-        content = str(formation.content) if hasattr(formation, 'content') else ""
+        content = str(formation.content) if hasattr(
+            formation, 'content') else ""
 
         # Format the response
         formatted_course = FormationResponseSchema(
+            id=formation.id,
             title=formation.title,
             price=str(formation.price),  # Regular price of the course
             promoPrice=str(formation.promo_price),  # Promotional price
-            promoDuration=(formation.promo_duration - timezone.now()).total_seconds() if formation.promo_duration else None,  # Promotion duration in seconds
+            promoDuration=(formation.promo_duration - timezone.now()).total_seconds(
+            ) if formation.promo_duration else None,  # Promotion duration in seconds
             imageUrl=str(formation.image_url),  # Convert to string
             modules=[ModuleSchema(content=content)]  # List of modules
         )
@@ -104,7 +109,7 @@ def get_formation_by_id(request, formation_id: int):
 
     except Formation.DoesNotExist:
         raise Http404("Formation not found")
-    
+
 
 @router.get("/user/{user_id}/formations", response=list[FormationDetailSchema])
 def get_user_formations(request, user_id: int):
@@ -119,6 +124,135 @@ def get_user_formations(request, user_id: int):
 
     # Construire la réponse avec le nom et l'URL de l'image pour chaque formation
     return [
-        {"id":purchase.formation.id,"title": purchase.formation.title, "image_url": purchase.formation.image_url or ""}
+        {"id": purchase.formation.id, "title": purchase.formation.title,
+            "image_url": purchase.formation.image_url or ""}
         for purchase in purchases
     ]
+
+
+@router.get("/formations/view/{formation_id}")
+def get_formation_with_videos(request, formation_id: int):
+    formation = get_object_or_404(Formation, id=formation_id)
+    videos = formation.videos.all()
+
+    # Adapter le retour pour le composant React
+    return {
+        "videos": [
+            {
+                "url": video.video_url,
+                "title": video.title,
+                "description": formation.title,
+                "thumbnail": formation.image_url,
+                "views": "",  # Champ vide
+                "author": "Karine Academy",
+            }
+            for video in videos
+        ],
+    }
+
+
+BASE_URL = "https://soleaspay.com/api/"
+
+
+@router.post("pay/licence")
+def creer_paiement(request, payment_data: PaymentSchema):
+    print(payment_data)
+    token = request.headers.get("Authorization").split(" ")[1]
+    user_data = verify_token(token)
+    user_id = user_data.get('id')
+    # Récupérer l'utilisateur
+    user = get_object_or_404(User, id=user_id)
+    devise = get_currency_by_country(payment_data.country)
+    formation = get_object_or_404(Formation, id=payment_data.formation_id)
+    # Créer une instance de Payment
+    payment = Payment.objects.create(
+        user=user,
+        formation=formation,
+        name=payment_data.name,
+        country=payment_data.country,
+        mobile_number=payment_data.mobile_number,
+        email=payment_data.email,
+        otp=payment_data.otp,
+        orderId=payment_data.orderId,
+        operator=payment_data.operator,
+        montant=payment_data.montant,
+        devise_client=devise,
+    )
+
+    # Appeler l'API de paiement
+    url = f"{BASE_URL}agent/bills"
+    headers = {
+        "x-api-key": config("X-API-KEY"),
+        "operation": "2",
+        # Utilisez l'opérateur depuis le schéma
+        "service": str(payment_data.operator),
+        "Content-Type": "application/json",
+        "otp": payment_data.otp,
+    }
+
+    wallet = payment_data.mobile_number or payment_data.email
+
+    payload = {
+        "wallet": wallet,
+        "amount": float(payment_data.montant),
+        "currency": devise,
+        "order_id": payment_data.orderId,
+    }
+
+    response = requests.post(url, headers=headers,
+                             data=json.dumps(payload), timeout=300)
+    response_data = response.json()
+    print(response_data)
+    if not response_data.get("success"):
+        payment.status = "Echec"
+        payment.save()
+        return {"status": 400, "message": "Votre paiement a échoué. Merci de réessayer."}
+
+    # Vérifier le lien de paiement
+    if "data" in response_data and "payLink" in response_data["data"]:
+        payUrl = response_data["data"]["payLink"]
+        return {
+            "status": 201,
+            "url": payUrl,
+            "message": "Vous allez être rediriger sur votre page de paiement.",
+        }
+    # Cas où la réponse indique un succès
+    if response_data.get("success"):
+        # Mise à jour du statut du paiement en "success"
+        payment.status = "success"
+        payment.save()
+        user_formation_purchase, created = UserFormationPurchase.objects.get_or_create(
+            user=user,
+            formation=formation
+        )
+
+        # Retourner une réponse indiquant que le paiement a réussi
+        return {
+            "status": 200,
+            "message": "Votre paiement a été effectué avec succès."
+        }
+    return {"status": 200, "message": "Paiement non traité, et aucun lien disponible."}
+
+
+@router.post("callback/payin", auth=None)
+def callbackPayin(request):
+    # Récupérer le header
+    header = request.headers
+    key = header.get("X-Private-Key")
+    print(header)
+    if key == config("PAYOUT_KEY"):
+        # Récupérer le contenu brut (Raw Content)
+        raw_content = json.loads(request.body)
+        print("status = ", raw_content.get("status"))
+        if raw_content.get("status") == "SUCCESS":
+            print("CALLBACK-------------------------------")
+            order_id = raw_content.get("externalRef")
+            payment = Payment.objects.filter(orderId=order_id).first()
+            payment.status = "succes"
+            payment.save()
+            formation = payment.formation
+            UserFormationPurchase.objects.create(
+                user=payment.user, formation=formation)
+            print('ok completed payin')
+            # EMAIL
+            return {"status": "success", "message": "Payment verified and user formation purchase created."}

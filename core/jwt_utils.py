@@ -6,7 +6,7 @@ from jwt import ExpiredSignatureError, InvalidTokenError
 # Configuration pour le JWT
 JWT_SECRET = settings.SECRET_KEY
 JWT_ALGORITHM = "HS256"
-ACCESS_TOKEN_EXPIRATION = timedelta(hours=1)  # Durée de validité du token d'accès
+ACCESS_TOKEN_EXPIRATION = timedelta(hours=72)  # Durée de validité du token d'accès
 
 # Fonction pour créer un token JWT
 def create_token(data: dict) -> str:

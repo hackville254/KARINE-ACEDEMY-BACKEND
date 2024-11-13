@@ -1,5 +1,5 @@
-from ninja import Schema
-from pydantic import EmailStr, HttpUrl
+from ninja import Field, Schema
+from pydantic import BaseModel, EmailStr, HttpUrl
 from typing import Optional
 
 class RegisterSchema(Schema):
@@ -28,6 +28,7 @@ class ModuleSchema(Schema):
     content: str
 
 class FormationResponseSchema(Schema):
+    id:int
     title: str
     price: str
     promoPrice: str
@@ -39,3 +40,16 @@ class FormationDetailSchema(Schema):
     id:int
     title: str
     image_url: str
+    
+    
+    
+class PaymentSchema(BaseModel):
+    formation_id: int  # Identifiant de la formation acheter
+    name: str  # Nom de l'utilisateur
+    email: Optional[EmailStr] = Field(default=None)
+    country: Optional[str] = Field(default=None, description="Pays de l'utilisateur")
+    mobile_number: Optional[str]
+    otp: Optional[str] = Field(default=None)
+    orderId: str  # ID de commande (generer sur le front-end)
+    operator: int # Identifiant de l'operateur
+    montant: float  # Montant

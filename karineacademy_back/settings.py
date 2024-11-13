@@ -33,22 +33,44 @@ if DEBUG:
     CORS_ALLOWED_ORIGINS = [
         "http://*","https://*"  # Remplacez ceci par l'origine de votre front-end si nécessaire
     ]
+    DATABASES = {
+    'default': {
+        'ENGINE': 'django.db.backends.sqlite3',
+        'NAME': BASE_DIR / 'db.sqlite3',
+    }
+}
 else:
-    ALLOWED_HOSTS = ['*']
-    # SECURITY WARNING: keep the secret key used in production secret!
+    ALLOWED_HOSTS = ['https://dashboard.karineacademy.cm','dashboard.karineacademy.cm','https://karineacademy.cm','karineacademy.cm']
+    CORS_ALLOWED_ORIGINS = ["https://karineacademy.cm"]
+    SECRET_KEY = config('SECRET_KEY')
     SECURE_PROXY_SSL_HEADER = ("HTTP_X_FORWARDED_PROTO", "https")
     SECURE_HSTS_SECONDS = 3600  # Set the desired value in seconds
     SECURE_SSL_REDIRECT = True
     SESSION_COOKIE_SECURE = True
     CSRF_COOKIE_SECURE = True
     SECURE_HSTS_INCLUDE_SUBDOMAINS = True
-    SECURE_HSTS_PRELOAD = True
+    SECURE_HSTS_PRELOAD = True 
     DATABASES = {
-        'default': {
-            'ENGINE': 'django.db.backends.sqlite3',
-            'NAME': BASE_DIR / 'db.sqlite3',
-        }
+    'default': {
+        'ENGINE': config('DATABASE_ENGINE'),
+        'NAME': config('DATABASE_NAME'),
+        'USER': config('DATABASE_USER'),
+        'PASSWORD': config('DATABASE_PASSWORD'),
+        'HOST': config('DATABASE_HOST'),
+        'PORT': config('DATABASE_PORT', cast=int),
     }
+}
+
+# email 
+
+EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'
+EMAIL_HOST = 'smtp.example.com'  # Remplacez par l'hôte SMTP de votre fournisseur d'email
+EMAIL_PORT = 587  # Port SMTP (587 pour TLS, 465 pour SSL)
+EMAIL_USE_TLS = True  # Utiliser TLS
+EMAIL_HOST_USER = 'your_email@example.com'  # Votre adresse email
+EMAIL_HOST_PASSWORD = 'your_email_password'  # Votre mot de passe d'email
+DEFAULT_FROM_EMAIL = 'your_email@example.com'  # Adresse par défaut pour l'envoi d'emails
+
 # Application definition
 
 INSTALLED_APPS = [
@@ -116,12 +138,6 @@ JAZZMIN_SETTINGS = {
 # Database
 # https://docs.djangoproject.com/en/5.1/ref/settings/#databases
 
-DATABASES = {
-    'default': {
-        'ENGINE': 'django.db.backends.sqlite3',
-        'NAME': BASE_DIR / 'db.sqlite3',
-    }
-}
 
 
 # Password validation
@@ -163,9 +179,9 @@ USE_TZ = True
 # Dans ce cas, nous ajoutons le répertoire 'static' à la racine du projet
 
 # Paramètres de connexion à votre instance MinIO
-MINIO_ENDPOINT = "karine-academy-bucket-karine.hegely.easypanel.host"
-MINIO_ACCESS_KEY = "O8xlRP5wdXGKp3GmtL0j"
-MINIO_SECRET_KEY = "ynz3HrJKTWwrBpfog5wwoVi31sZsHinNPVc86tGQ"
+MINIO_ENDPOINT = config('MINIO_ENDPOINT')
+MINIO_ACCESS_KEY = config('MINIO_ACCESS_KEY')
+MINIO_SECRET_KEY = config('MINIO_SECRET_KEY')
 MINIO_IMAGE_BUCKET_NAME = "media"
 MINIO_VIDEO_BUCKET_NAME = "media"
 MINIO_BUCKET_STATIC = "static"

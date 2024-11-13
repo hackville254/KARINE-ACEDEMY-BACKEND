@@ -5,6 +5,8 @@ import uuid
 from django.core.exceptions import ValidationError
 from .minio_utils import delete_image_from_minio, delete_video_from_minio, upload_image_to_minio, upload_video_to_minio
 from django.contrib.auth.models import User
+from urllib.parse import quote
+
 
 def validate_video_file(value):
     """Valide que le fichier téléchargé est bien une vidéo"""
@@ -32,7 +34,7 @@ class Formation(models.Model):
     image = models.ImageField(
         upload_to="images/", blank=True, verbose_name="Image de présentation")
     image_url = models.URLField(
-        max_length=500, blank=True, verbose_name="URL de l'image de présentation")
+        max_length=500, blank=True,null=True, verbose_name="URL de l'image de présentation")
     content = models.TextField(verbose_name="Contenu de la formation")
 
     created = models.DateTimeField(
@@ -49,7 +51,11 @@ class Formation(models.Model):
             if self.image_url:
                 delete_image_from_minio(self.image_url)
             ext = self.image.name.split('.')[-1].lower()
-            filename = f"{self.title}_{uuid.uuid4()}.{ext}"
+            # Remplacer les espaces dans le titre par des underscores pour éviter les problèmes d'URL
+            safe_title = self.title.replace(" ", "_")
+            
+            # Générer un nom de fichier unique avec un UUID
+            filename = f"{safe_title}_{uuid.uuid4()}.{ext}"
             self.image_url = upload_image_to_minio(self.image.file, filename)
             self.image = None  # Efface le fichier temporaire après l'upload
 
@@ -67,10 +73,11 @@ class Formation(models.Model):
 
 class VideoFormation(models.Model):
     title = models.CharField(max_length=255, verbose_name="Titre de la vidéo")
+    ordre = models.IntegerField(("Ordre d'affichage de la formation") , default=1)
     video_file = models.FileField(
         upload_to="videos/", blank=True, verbose_name="Fichier vidéo", validators=[validate_video_file])
     video_url = models.URLField(
-        max_length=500, blank=True, verbose_name="URL du fichier vidéo")
+        max_length=500, blank=True,null=True, verbose_name="URL du fichier vidéo")
     formation = models.ForeignKey(
         'Formation', related_name='videos', on_delete=models.CASCADE)
     created = models.DateTimeField(
@@ -94,7 +101,7 @@ class VideoFormation(models.Model):
 
             # Générer un nom de fichier unique
             filename = f"{self.title}_{uuid.uuid4()}.{ext}"
-
+            filename = quote(filename)
             # Obtenir le type MIME du fichier
             content_type, _ = mimetypes.guess_type(self.video_file.name)
             if content_type is None:
@@ -127,3 +134,22 @@ class UserFormationPurchase(models.Model):  # Nouveau nom de classe
     class Meta:
         verbose_name = 'Formation Acheter'
         verbose_name_plural = 'Formation Acheter'
+        
+        
+#########Classe pour les paiements
+
+class Payment(models.Model):
+    user = models.ForeignKey(User, on_delete=models.CASCADE)
+    formation = models.ForeignKey(Formation, on_delete=models.CASCADE)
+    montant = models.FloatField()  # Montant
+    devise_client = models.CharField(max_length=10)  # Devise
+    status = models.CharField(max_length=20, default="initialiser")  # Statut de paiement
+    name = models.CharField(max_length=255)  # Nom de l'utilisateur
+    country = models.CharField(max_length=255, blank=True, null=True)  # Pays de l'utilisateur
+    mobile_number = models.CharField(max_length=20, blank=True, null=True)  # Numéro Mobile Money
+    email = models.EmailField(blank=True, null=True)  # E-mail de l'utilisateur
+    otp = models.CharField(max_length=6, blank=True, null=True)  # Code OTP
+    orderId = models.CharField(max_length=10)  # Code OTP
+    operator = models.CharField(max_length=50, blank=True, null=True)  # Opérateur Mobile Money
+    created_at = models.DateTimeField(auto_now_add=True)  # Date de création
+    updated_at = models.DateTimeField(auto_now=True)  # Date de mise à jour
