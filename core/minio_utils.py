@@ -76,7 +76,7 @@ def upload_video_to_minio(file, filename, content_type=None):
                 object_name=filename,
                 data=temp_file,
                 length=-1,  # La taille est inconnue si on utilise -1
-                part_size=10 * 1024 * 1024,  # Décompose en parties de 10 Mo
+                part_size=1 * 1024 * 1024,  # Décompose en parties de 10 Mo
                 content_type=content_type
             )
 
