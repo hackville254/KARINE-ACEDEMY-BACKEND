@@ -20,6 +20,8 @@ idna==3.10
 minio==7.2.10
 packaging==24.1
 pillow==11.0.0
+psycopg==3.2.3
+psycopg-binary==3.2.3
 pycparser==2.22
 pycryptodome==3.21.0
 pydantic==2.9.2
