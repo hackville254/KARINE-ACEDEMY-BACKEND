@@ -1,4 +1,3 @@
-from io import BytesIO
 import os
 import uuid
 from django.conf import settings
@@ -50,54 +49,36 @@ def delete_image_from_minio(file_url):
         print(f"Erreur lors de la suppression de l'image : {e}")
 
 
-
-
 def upload_video_to_minio(file, filename, content_type=None):
     try:
         # Génération du chemin complet pour le fichier dans MinIO
         filename = f"videos/{filename}"
-
+        
         # Taille totale du fichier pour calculer la progression
         file_size = file.size
         uploaded_size = 0  # Initialisation de la taille uploadée
 
-        # Initialisation du client MinIO
-        minio_client = Minio(
-            settings.MINIO_ENDPOINT,
-            access_key=settings.MINIO_ACCESS_KEY,
-            secret_key=settings.MINIO_SECRET_KEY,
-            secure=settings.MINIO_USE_SSL
-        )
+        # Chargement progressif en utilisant un fichier temporaire
+        with TemporaryFile() as temp_file:
+            for chunk in file.chunks():  # lecture par chunks
+                temp_file.write(chunk)
+                uploaded_size += len(chunk)
+                
+                # Calcul de la progression en pourcentage
+                progress_percentage = (uploaded_size / file_size) * 100
+                logger.info(f"Progression de l'upload : {progress_percentage:.2f}%")
 
-        # Upload multipart
-        parts = []
-        part_number = 1
-        total_parts = (file_size // (1 * 1024 * 1024)) + 1  # 1 Mo par partie
+            temp_file.seek(0)  # remettre le pointeur au début
 
-        # Commencer l'upload multipart
-        upload_id = minio_client.initiate_multipart_upload(settings.MINIO_VIDEO_BUCKET_NAME, filename, content_type)
-
-        for chunk in file.chunks(chunk_size=10 * 1024 * 1024):  # lecture par chunks de 10 Mo
-            # Créer un BytesIO pour chaque chunk
-            chunk_data = BytesIO(chunk)
-            part = minio_client.upload_part(
-                settings.MINIO_VIDEO_BUCKET_NAME,
-                filename,
-                upload_id,
-                part_number,
-                chunk_data,
-                len(chunk)
+            # Upload de la vidéo
+            minio_client.put_object(
+                bucket_name=settings.MINIO_VIDEO_BUCKET_NAME,
+                object_name=filename,
+                data=temp_file,
+                length=-1,  # La taille est inconnue si on utilise -1
+                part_size=10 * 1024 * 1024,  # Décompose en parties de 10 Mo
+                content_type=content_type
             )
-            parts.append(part)
-            uploaded_size += len(chunk)
-
-            # Calcul de la progression en pourcentage
-            progress_percentage = (uploaded_size / file_size) * 100
-            logger.info(f"Progression de l'upload : {progress_percentage:.2f}%")
-            part_number += 1
-
-        # Terminer l'upload multipart
-        minio_client.complete_multipart_upload(settings.MINIO_VIDEO_BUCKET_NAME, filename, upload_id, parts)
 
         file_url = f"https://{settings.MINIO_ENDPOINT}/{settings.MINIO_VIDEO_BUCKET_NAME}/{filename}"
         logger.info(f"Vidéo uploadée avec succès : {file_url}")
@@ -106,46 +87,6 @@ def upload_video_to_minio(file, filename, content_type=None):
     except S3Error as e:
         logger.error(f"Erreur lors de l'upload de la vidéo : {e}")
         return None
-
-
-# def upload_video_to_minio(file, filename, content_type=None):
-#     try:
-#         # Génération du chemin complet pour le fichier dans MinIO
-#         filename = f"videos/{filename}"
-        
-#         # Taille totale du fichier pour calculer la progression
-#         file_size = file.size
-#         uploaded_size = 0  # Initialisation de la taille uploadée
-
-#         # Chargement progressif en utilisant un fichier temporaire
-#         with TemporaryFile() as temp_file:
-#             for chunk in file.chunks():  # lecture par chunks
-#                 temp_file.write(chunk)
-#                 uploaded_size += len(chunk)
-                
-#                 # Calcul de la progression en pourcentage
-#                 progress_percentage = (uploaded_size / file_size) * 100
-#                 logger.info(f"Progression de l'upload : {progress_percentage:.2f}%")
-
-#             temp_file.seek(0)  # remettre le pointeur au début
-
-#             # Upload de la vidéo
-#             minio_client.put_object(
-#                 bucket_name=settings.MINIO_VIDEO_BUCKET_NAME,
-#                 object_name=filename,
-#                 data=temp_file,
-#                 length=-1,  # La taille est inconnue si on utilise -1
-#                 part_size=10 * 1024 * 1024,  # Décompose en parties de 10 Mo
-#                 content_type=content_type
-#             )
-
-#         file_url = f"https://{settings.MINIO_ENDPOINT}/{settings.MINIO_VIDEO_BUCKET_NAME}/{filename}"
-#         logger.info(f"Vidéo uploadée avec succès : {file_url}")
-#         return file_url
-
-#     except S3Error as e:
-#         logger.error(f"Erreur lors de l'upload de la vidéo : {e}")
-#         return None
 
 def delete_video_from_minio(file_url):
     """Supprime une video de MinIO en utilisant son URL complète."""
