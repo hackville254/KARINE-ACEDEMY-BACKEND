@@ -124,10 +124,10 @@ class VideoFormation(models.Model):
                 delete_video_from_minio(self.video_url)
             # Valider l'extension du fichier vidéo
             ext = self.video_file.name.split('.')[-1].lower()
-            valid_video_extensions = ['mp4', 'avi', 'mov', 'mkv', 'flv']
-            if ext not in valid_video_extensions:
-                raise ValidationError(
-                    "Le fichier n'est pas un format vidéo valide.")
+            #valid_video_extensions = ['mp4', 'avi', 'mov', 'mkv', 'flv']
+            # if ext not in valid_video_extensions:
+            #     raise ValidationError(
+            #         "Le fichier n'est pas un format vidéo valide.")
 
             # Générer un nom de fichier unique
             filename = f"{self.title}_{uuid.uuid4()}.{ext}"
