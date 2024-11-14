@@ -26,6 +26,7 @@ pydantic==2.9.2
 pydantic_core==2.23.4
 PyJWT==2.9.0
 python-decouple==3.8
+python-magic==0.4.27
 requests==2.32.3
 sqlparse==0.5.1
 tqdm==4.66.6
@@ -33,5 +34,3 @@ typing_extensions==4.12.2
 tzdata==2024.2
 urllib3==2.2.3
 whitenoise==6.8.2
-psycopg-binary
-psycopg

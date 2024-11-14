@@ -1,4 +1,5 @@
 import mimetypes
+import magic
 from django_quill.fields import QuillField
 from django.db import models
 import uuid
@@ -6,6 +7,9 @@ from django.core.exceptions import ValidationError
 from .minio_utils import delete_image_from_minio, delete_video_from_minio, upload_image_to_minio, upload_video_to_minio
 from django.contrib.auth.models import User
 from urllib.parse import quote
+
+# Ajouter manuellement le type MIME pour .m4v
+mimetypes.add_type('video/x-m4v', '.m4v')
 
 
 def validate_video_file(value):
@@ -105,7 +109,7 @@ class VideoFormation(models.Model):
     ordre = models.IntegerField(
         ("Ordre d'affichage de la formation"), default=1)
     video_file = models.FileField(
-        upload_to="videos/", blank=True, null=True, verbose_name="Fichier vidéo")  #, validators=[validate_video_file]
+        upload_to="videos/", blank=True, null=True, verbose_name="Fichier vidéo", validators=[validate_video_file])
     video_url = models.URLField(
         max_length=500, blank=True, null=True, verbose_name="URL du fichier vidéo")
     formation = models.ForeignKey(
@@ -124,7 +128,7 @@ class VideoFormation(models.Model):
                 delete_video_from_minio(self.video_url)
             # Valider l'extension du fichier vidéo
             ext = self.video_file.name.split('.')[-1].lower()
-            #valid_video_extensions = ['mp4', 'avi', 'mov', 'mkv', 'flv']
+            # valid_video_extensions = ['mp4', 'avi', 'mov', 'mkv', 'flv']
             # if ext not in valid_video_extensions:
             #     raise ValidationError(
             #         "Le fichier n'est pas un format vidéo valide.")
@@ -133,7 +137,13 @@ class VideoFormation(models.Model):
             filename = f"{self.title}_{uuid.uuid4()}.{ext}"
             filename = quote(filename)
             # Obtenir le type MIME du fichier
-            content_type, _ = mimetypes.guess_type(self.video_file.name)
+            # Obtenir le type MIME du fichier avec python-magic
+            mime = magic.Magic(mime=True)
+            # Lire les premiers 1024 octets pour déterminer le type
+            content_type = mime.from_buffer(self.video_file.read(1024))
+            # Revenir au début du fichier après la lecture
+            self.video_file.seek(0)
+
             if content_type is None:
                 raise ValidationError(
                     "Impossible de déterminer le type de contenu du fichier.")
