@@ -10,7 +10,7 @@ from urllib.parse import quote
 
 def validate_video_file(value):
     """Valide que le fichier téléchargé est bien une vidéo"""
-    valid_video_extensions = ['mp4', 'avi', 'mov', 'mkv']
+    valid_video_extensions = ['mp4', 'avi', 'mov', 'mkv','m4v']
     ext = value.name.split('.')[-1].lower()
 
     # Vérification de l'extension du fichier
@@ -20,6 +20,7 @@ def validate_video_file(value):
 
 
 class Formation(models.Model):
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     title = models.CharField(
         max_length=255, verbose_name="Titre de la formation")
     description = models.CharField(
@@ -72,6 +73,7 @@ class Formation(models.Model):
 
 
 class VideoFormation(models.Model):
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     title = models.CharField(max_length=255, verbose_name="Titre de la vidéo")
     ordre = models.IntegerField(("Ordre d'affichage de la formation") , default=1)
     video_file = models.FileField(
@@ -124,6 +126,7 @@ class VideoFormation(models.Model):
         return self.title
     
 class UserFormationPurchase(models.Model):  # Nouveau nom de classe
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='purchased_formations')
     formation = models.ForeignKey(Formation, on_delete=models.CASCADE, related_name='purchased_by_users')
     achat_date = models.DateTimeField(auto_now_add=True)
@@ -139,6 +142,7 @@ class UserFormationPurchase(models.Model):  # Nouveau nom de classe
 #########Classe pour les paiements
 
 class Payment(models.Model):
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     user = models.ForeignKey(User, on_delete=models.CASCADE)
     formation = models.ForeignKey(Formation, on_delete=models.CASCADE)
     montant = models.FloatField()  # Montant
