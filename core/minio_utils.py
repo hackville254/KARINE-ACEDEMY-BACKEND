@@ -72,7 +72,7 @@ def upload_video_to_minio(file, filename, content_type=None):
         # Upload multipart
         parts = []
         part_number = 1
-        total_parts = (file_size // (10 * 1024 * 1024)) + 1  # 10 Mo par partie
+        total_parts = (file_size // (1 * 1024 * 1024)) + 1  # 1 Mo par partie
 
         # Commencer l'upload multipart
         upload_id = minio_client.initiate_multipart_upload(settings.MINIO_VIDEO_BUCKET_NAME, filename, content_type)

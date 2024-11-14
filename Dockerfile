@@ -23,4 +23,4 @@ EXPOSE 8059
 
 # Commande pour démarrer l'application Django
 #CMD ["gunicorn", "--bind", "0.0.0.0:8059", "karineacademy_back.wsgi:application"]
-CMD ["gunicorn", "--bind", "0.0.0.0:8059", "--limit-request-line", "8190", "--limit-request-field_size", "8190", "karineacademy_back.wsgi:application"]
+CMD ["gunicorn", "--bind", "0.0.0.0:8059", "--timeout", "600", "--limit-request-line", "16384", "--limit-request-field_size", "16384", "karineacademy_back.wsgi:application"]
