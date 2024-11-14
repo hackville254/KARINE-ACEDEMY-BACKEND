@@ -105,7 +105,7 @@ class VideoFormation(models.Model):
     ordre = models.IntegerField(
         ("Ordre d'affichage de la formation"), default=1)
     video_file = models.FileField(
-        upload_to="videos/", blank=True, null=True, verbose_name="Fichier vidéo", validators=[validate_video_file])
+        upload_to="videos/", blank=True, null=True, verbose_name="Fichier vidéo")  #, validators=[validate_video_file]
     video_url = models.URLField(
         max_length=500, blank=True, null=True, verbose_name="URL du fichier vidéo")
     formation = models.ForeignKey(
