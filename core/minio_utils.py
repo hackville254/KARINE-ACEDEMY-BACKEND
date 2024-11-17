@@ -17,7 +17,6 @@ minio_client = Minio(
     access_key=settings.MINIO_ACCESS_KEY,
     secret_key=settings.MINIO_SECRET_KEY,
     secure=settings.MINIO_USE_SSL,
-    timeout=600
 )
 
 
@@ -101,7 +100,8 @@ def upload_video_to_minio(file, filename, content_type=None, retries=3, part_siz
                         data=temp_file,
                         length=file_size,
                         part_size=part_size,  # Décompose en parties de 10 Mo
-                        content_type=content_type
+                        content_type=content_type,
+                        timeout=600
                     )
                 
                 # Si l'upload a réussi, sortir de la boucle
