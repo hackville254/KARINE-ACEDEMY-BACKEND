@@ -1,4 +1,5 @@
 import mimetypes
+import re
 from django_quill.fields import QuillField
 from django.db import models
 import uuid
@@ -9,6 +10,7 @@ from urllib.parse import quote
 
 # Ajouter manuellement le type MIME pour .m4v
 mimetypes.add_type('video/x-m4v', '.m4v')
+
 
 def validate_video_file(value):
     """Valide que le fichier téléchargé est bien une vidéo"""
@@ -132,8 +134,18 @@ class VideoFormation(models.Model):
             #         "Le fichier n'est pas un format vidéo valide.")
 
             # Générer un nom de fichier unique
-            filename = f"{self.title}_{uuid.uuid4()}.{ext}"
-            filename = quote(filename)
+            # Nettoyer et générer un nom de fichier unique
+            # Supprime les caractères spéciaux
+            filename_base = re.sub(r'[^a-zA-Z0-9\s]', '', self.title)
+            # Remplace les espaces par des tirets
+            filename_base = filename_base.replace(' ', '-')
+            filename_base = filename_base.lower()                    # Convertir en minuscules
+
+            # Ajouter un UUID unique pour garantir l'unicité du fichier
+            filename = f"{filename_base}_{uuid.uuid4()}.{ext}"
+
+            # Encoder le nom du fichier pour l'URL
+            filename = quote(filename)             # Convertir en minuscules
             # Obtenir le type MIME du fichier
             content_type, _ = mimetypes.guess_type(self.video_file.name)
             if content_type is None:
