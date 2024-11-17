@@ -101,7 +101,6 @@ def upload_video_to_minio(file, filename, content_type=None, retries=3, part_siz
                         length=file_size,
                         part_size=part_size,  # Décompose en parties de 10 Mo
                         content_type=content_type,
-                        timeout=600
                     )
                 
                 # Si l'upload a réussi, sortir de la boucle
