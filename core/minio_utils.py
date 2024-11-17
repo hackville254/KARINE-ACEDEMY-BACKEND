@@ -5,6 +5,7 @@ from minio import Minio
 from minio.error import S3Error
 from tempfile import TemporaryFile
 import logging
+import time
 
 # Configuration de logging
 logging.basicConfig(level=logging.INFO)
@@ -49,7 +50,17 @@ def delete_image_from_minio(file_url):
         print(f"Erreur lors de la suppression de l'image : {e}")
 
 
-def upload_video_to_minio(file, filename, content_type=None):
+def upload_video_to_minio(file, filename, content_type=None, retries=3, part_size=1 * 1024 * 1024):
+    """
+    Uploads a large video file to MinIO with retry logic and chunked uploads.
+    
+    :param file: File to upload
+    :param filename: Name of the file on MinIO
+    :param content_type: MIME type of the file (optional)
+    :param retries: Number of retries in case of failure (default is 3)
+    :param part_size: Size of each part for chunked upload (default is 10MB)
+    :return: The URL of the uploaded file if successful, None otherwise
+    """
     try:
         # Génération du chemin complet pour le fichier dans MinIO
         filename = f"videos/{filename}"
@@ -58,28 +69,54 @@ def upload_video_to_minio(file, filename, content_type=None):
         file_size = file.size
         uploaded_size = 0  # Initialisation de la taille uploadée
 
-        # Chargement progressif en utilisant un fichier temporaire
-        with TemporaryFile() as temp_file:
-            for chunk in file.chunks():  # lecture par chunks
-                temp_file.write(chunk)
-                uploaded_size += len(chunk)
+        # Calcul du nombre de morceaux nécessaires
+        total_parts = (file_size // part_size) + 1
+        minio_client = Minio(
+            settings.MINIO_ENDPOINT,
+            access_key=settings.MINIO_ACCESS_KEY,
+            secret_key=settings.MINIO_SECRET_KEY,
+            secure=settings.MINIO_USE_SSL
+        )
+
+        # Essayez de charger le fichier en plusieurs morceaux
+        for attempt in range(retries):
+            try:
+                # Chargement progressif en utilisant un fichier temporaire
+                with TemporaryFile() as temp_file:
+                    for chunk in file.chunks():  # Lecture par chunks
+                        temp_file.write(chunk)
+                        uploaded_size += len(chunk)
+
+                        # Calcul de la progression en pourcentage
+                        progress_percentage = (uploaded_size / file_size) * 100
+                        logger.info(f"Progression de l'upload : {progress_percentage:.2f}%")
+
+                    temp_file.seek(0)  # remettre le pointeur au début
+
+                    # Upload de la vidéo par parties
+                    minio_client.put_object(
+                        bucket_name=settings.MINIO_VIDEO_BUCKET_NAME,
+                        object_name=filename,
+                        data=temp_file,
+                        length=file_size,
+                        part_size=part_size,  # Décompose en parties de 10 Mo
+                        content_type=content_type
+                    )
                 
-                # Calcul de la progression en pourcentage
-                progress_percentage = (uploaded_size / file_size) * 100
-                logger.info(f"Progression de l'upload : {progress_percentage:.2f}%")
+                # Si l'upload a réussi, sortir de la boucle
+                break
 
-            temp_file.seek(0)  # remettre le pointeur au début
+            except S3Error as e:
+                logger.error(f"Erreur lors de l'upload de la vidéo, tentative {attempt + 1}/{retries}: {e}")
+                if attempt < retries - 1:
+                    logger.info(f"Nouvelle tentative dans 3 secondes...")
+                    time.sleep(3)  # Attendre un peu avant de réessayer
 
-            # Upload de la vidéo
-            minio_client.put_object(
-                bucket_name=settings.MINIO_VIDEO_BUCKET_NAME,
-                object_name=filename,
-                data=temp_file,
-                length=-1,  # La taille est inconnue si on utilise -1
-                part_size=10 * 1024 * 1024,  # Décompose en parties de 10 Mo
-                content_type=content_type
-            )
+        else:
+            logger.error("Échec de l'upload après plusieurs tentatives.")
+            return None
 
+        # URL de la vidéo une fois l'upload réussi
         file_url = f"https://{settings.MINIO_ENDPOINT}/{settings.MINIO_VIDEO_BUCKET_NAME}/{filename}"
         logger.info(f"Vidéo uploadée avec succès : {file_url}")
         return file_url
