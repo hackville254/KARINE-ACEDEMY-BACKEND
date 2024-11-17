@@ -5,13 +5,20 @@ from minio import Minio
 from minio.error import S3Error
 from tempfile import TemporaryFile
 import logging
-from urllib3 import PoolManager
+from urllib3 import PoolManager, Retry, Timeout
 import time
 # Configuration de logging
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
-http_client = PoolManager(timeout=600)   # Timeout de 10 minutes
+http_client = PoolManager(
+    timeout=Timeout(connect=5.0, read=15.0),
+    retries=Retry(
+        total=5,
+        backoff_factor=0.2,
+        status_forcelist=[500, 502, 503, 504],
+    ),
+)
 
 # Initialiser le client MinIO
 minio_client = Minio(
@@ -19,7 +26,7 @@ minio_client = Minio(
     access_key=settings.MINIO_ACCESS_KEY,
     secret_key=settings.MINIO_SECRET_KEY,
     secure=settings.MINIO_USE_SSL,
-    http_client = http_client
+    http_client=http_client
 )
 
 
@@ -56,7 +63,7 @@ def delete_image_from_minio(file_url):
 def upload_video_to_minio(file, filename, content_type=None, retries=3, part_size=10 * 1024 * 1024):
     """
     Uploads a large video file to MinIO with retry logic and chunked uploads.
-    
+
     :param file: File to upload
     :param filename: Name of the file on MinIO
     :param content_type: MIME type of the file (optional)
@@ -67,7 +74,7 @@ def upload_video_to_minio(file, filename, content_type=None, retries=3, part_siz
     try:
         # Génération du chemin complet pour le fichier dans MinIO
         filename = f"videos/{filename}"
-        
+
         # Taille totale du fichier pour calculer la progression
         file_size = file.size
         uploaded_size = 0  # Initialisation de la taille uploadée
@@ -92,7 +99,8 @@ def upload_video_to_minio(file, filename, content_type=None, retries=3, part_siz
 
                         # Calcul de la progression en pourcentage
                         progress_percentage = (uploaded_size / file_size) * 100
-                        logger.info(f"Progression de l'upload : {progress_percentage:.2f}%")
+                        logger.info(
+                            f"Progression de l'upload : {progress_percentage:.2f}%")
 
                     temp_file.seek(0)  # remettre le pointeur au début
 
@@ -105,12 +113,13 @@ def upload_video_to_minio(file, filename, content_type=None, retries=3, part_siz
                         part_size=part_size,  # Décompose en parties de 10 Mo
                         content_type=content_type,
                     )
-                
+
                 # Si l'upload a réussi, sortir de la boucle
                 break
 
             except S3Error as e:
-                logger.error(f"Erreur lors de l'upload de la vidéo, tentative {attempt + 1}/{retries}: {e}")
+                logger.error(
+                    f"Erreur lors de l'upload de la vidéo, tentative {attempt + 1}/{retries}: {e}")
                 if attempt < retries - 1:
                     logger.info(f"Nouvelle tentative dans 3 secondes...")
                     time.sleep(3)  # Attendre un peu avant de réessayer
@@ -132,7 +141,7 @@ def upload_video_to_minio(file, filename, content_type=None, retries=3, part_siz
 #     try:
 #         # Génération du chemin complet pour le fichier dans MinIO
 #         filename = f"videos/{filename}"
-        
+
 #         # Taille totale du fichier pour calculer la progression
 #         file_size = file.size
 #         uploaded_size = 0  # Initialisation de la taille uploadée
@@ -202,7 +211,8 @@ def upload_static_files_to_minio():
     for root, dirs, files in os.walk(static_root):
         for file in files:
             file_path = os.path.join(root, file)
-            file_name = os.path.relpath(file_path, static_root)  # Chemin relatif pour conserver la hiérarchie
+            # Chemin relatif pour conserver la hiérarchie
+            file_name = os.path.relpath(file_path, static_root)
 
             # Télécharger le fichier dans le bucket
             with open(file_path, 'rb') as f:
@@ -214,5 +224,5 @@ def upload_static_files_to_minio():
                     content_type="application/octet-stream"  # Ajustez selon le type de fichier
                 )
             print(f"Fichier {file_name} téléchargé avec succès dans MinIO.")
-            
-#upload_static_files_to_minio()
+
+# upload_static_files_to_minio()
