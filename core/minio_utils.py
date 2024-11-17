@@ -11,13 +11,15 @@ import time
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
-http_client = PoolManager(timeout=600)
+http_client = PoolManager(timeout=600)   # Timeout de 10 minutes
+
 # Initialiser le client MinIO
 minio_client = Minio(
     endpoint=settings.MINIO_ENDPOINT,
     access_key=settings.MINIO_ACCESS_KEY,
     secret_key=settings.MINIO_SECRET_KEY,
     secure=settings.MINIO_USE_SSL,
+    http_client = http_client
 )
 
 
