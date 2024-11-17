@@ -1,6 +1,7 @@
 from datetime import timezone
 import json
 from typing import List
+from uuid import UUID
 import requests
 from decouple import config
 from django.http import Http404
@@ -80,7 +81,7 @@ def get_formations(request):
 
 
 @router.get("/formations/{formation_id}", response=FormationResponseSchema)
-def get_formation_by_id(request, formation_id: int):
+def get_formation_by_id(request, formation_id: UUID):
     try:
         # Retrieve the formation by ID
         formation = Formation.objects.get(id=formation_id)

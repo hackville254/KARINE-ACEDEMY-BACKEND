@@ -1,4 +1,9 @@
-# Fichiers d'environnement
+# Ignorer les fichiers d'environnement
 .env
 *.env
+
+# Ignorer le dossier d'environnement virtuel
 env/
+
+# Ignorer la base de données SQLite
+db.sqlite3

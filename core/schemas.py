@@ -1,3 +1,4 @@
+from uuid import UUID
 from ninja import Field, Schema
 from pydantic import BaseModel, EmailStr, HttpUrl
 from typing import Optional
@@ -16,7 +17,7 @@ class TokenResponse(Schema):
     token_type: str = "bearer"
 
 class FormationSchema(Schema):
-    id:str
+    id:UUID
     title: str
     price: str
     lessons: str  # Leçons (nombre de vidéos)
@@ -28,7 +29,7 @@ class ModuleSchema(Schema):
     content: str
 
 class FormationResponseSchema(Schema):
-    id:str
+    id:UUID
     title: str
     price: str
     promoPrice: str
@@ -37,14 +38,14 @@ class FormationResponseSchema(Schema):
     modules: list[ModuleSchema]
     
 class FormationDetailSchema(Schema):
-    id:str
+    id:UUID
     title: str
     image_url: str
     
     
     
 class PaymentSchema(BaseModel):
-    formation_id: str  # Identifiant de la formation acheter
+    formation_id: UUID  # Identifiant de la formation acheter
     name: str  # Nom de l'utilisateur
     email: Optional[EmailStr] = Field(default=None)
     country: Optional[str] = Field(default=None, description="Pays de l'utilisateur")

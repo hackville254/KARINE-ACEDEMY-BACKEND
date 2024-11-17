@@ -106,7 +106,7 @@ def upload_video_to_minio(file, filename, content_type=None):
             part_size=10 * 1024 * 1024,  # Décompose en parties de 10 Mo
             content_type=content_type,
             # Utilisation d'un callback pour suivre la progression
-            progress_callback=lambda bytes_uploaded: log_progress(bytes_uploaded, file_size)
+            #progress_callback=lambda bytes_uploaded: log_progress(bytes_uploaded, file_size)
         )
 
         file_url = f"https://{settings.MINIO_ENDPOINT}/{settings.MINIO_VIDEO_BUCKET_NAME}/{filename}"
