@@ -60,7 +60,7 @@ def delete_image_from_minio(file_url):
         print(f"Erreur lors de la suppression de l'image : {e}")
 
 
-def upload_video_to_minio(file, filename, content_type=None, retries=3, part_size=10 * 1024 * 1024):
+def upload_video_to_minio(file, filename, content_type=None, retries=3, part_size=1 * 1024 * 1024):
     """
     Uploads a large video file to MinIO with retry logic and chunked uploads.
 
