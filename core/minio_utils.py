@@ -5,12 +5,13 @@ from minio import Minio
 from minio.error import S3Error
 from tempfile import TemporaryFile
 import logging
+from urllib3 import PoolManager
 import time
-
 # Configuration de logging
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
+http_client = PoolManager(timeout=600)
 # Initialiser le client MinIO
 minio_client = Minio(
     endpoint=settings.MINIO_ENDPOINT,
