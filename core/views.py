@@ -132,7 +132,7 @@ def get_user_formations(request, user_id: int):
 
 
 @router.get("/formations/view/{formation_id}")
-def get_formation_with_videos(request, formation_id: int):
+def get_formation_with_videos(request, formation_id: UUID):
     formation = get_object_or_404(Formation, id=formation_id)
     videos = formation.videos.all()
 
