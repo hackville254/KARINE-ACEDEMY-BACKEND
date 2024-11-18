@@ -1,4 +1,6 @@
+from datetime import timedelta
 import os
+from typing import Optional
 import uuid
 from django.conf import settings
 from minio import Minio
@@ -58,6 +60,7 @@ def delete_image_from_minio(file_url):
         print(f"Image {filename} supprimée avec succès.")
     except S3Error as e:
         print(f"Erreur lors de la suppression de l'image : {e}")
+        
 
 
 # def upload_video_to_minio(file, filename, content_type=None, retries=3, part_size=1 * 1024 * 1024):
@@ -225,5 +228,37 @@ def upload_static_files_to_minio():
                     content_type="application/octet-stream"  # Ajustez selon le type de fichier
                 )
             print(f"Fichier {file_name} téléchargé avec succès dans MinIO.")
+            
+            
+def generate_presigned_url_for_upload(filename, content_type=None, expires_in_minutes=60):
+    """
+    Génère une URL présignée pour permettre l'upload direct d'une vidéo sur MinIO.
 
-# upload_static_files_to_minio()
+    :param filename: Nom du fichier à uploader
+    :param content_type: MIME type du fichier (optionnel, mais non utilisé dans presigned_put_object)
+    :param expires_in_minutes: Durée de validité de l'URL présignée en minutes (par défaut 60 minutes)
+    :return: URL présignée pour l'upload
+    """
+    try:
+        # Création d'un client MinIO
+        minio_client = Minio(
+            settings.MINIO_ENDPOINT,
+            access_key=settings.MINIO_ACCESS_KEY,
+            secret_key=settings.MINIO_SECRET_KEY,
+            secure=settings.MINIO_USE_SSL
+        )
+
+        # Génération du chemin complet pour le fichier dans MinIO
+        object_name = f"videos/{filename}"
+
+        # Génération de l'URL présignée
+        presigned_url = minio_client.presigned_put_object(
+            bucket_name=settings.MINIO_VIDEO_BUCKET_NAME,
+            object_name=object_name,
+            expires=timedelta(minutes=expires_in_minutes)
+        )
+
+        return presigned_url
+
+    except S3Error as e:
+        raise ValueError(f"Erreur lors de la génération de l'URL présignée : {str(e)}")

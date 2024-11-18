@@ -1,17 +1,22 @@
 from datetime import timezone
 import json
-from typing import List
+import mimetypes
+import re
+from typing import List, Optional
+from urllib.parse import quote
 from uuid import UUID
+import uuid
 import requests
 from decouple import config
 from django.http import Http404
 from django.shortcuts import get_object_or_404
+from core.minio_utils import generate_presigned_url_for_upload
 from core.models import Formation, Payment, UserFormationPurchase
 from core.schemas import FormationDetailSchema, FormationResponseSchema, FormationSchema, ModuleSchema, PaymentSchema, RegisterSchema, LoginSchema
 from core.utils import get_currency_by_country
 from .jwt_utils import create_token, verify_token
 from django.contrib.auth.models import User
-from ninja import Router
+from ninja import File, Router, UploadedFile
 from django.contrib.auth.hashers import make_password, check_password
 
 # Router Ninja pour l'API d'authentification
@@ -133,8 +138,19 @@ def get_user_formations(request, user_id: int):
 
 @router.get("/formations/view/{formation_id}")
 def get_formation_with_videos(request, formation_id: UUID):
+    token = request.headers.get("Authorization").split(" ")[1]
+    user_data = verify_token(token)
+    user_id = user_data.get('id')
+    # Vérifier si l'utilisateur a acheté la formation
+    has_purchased = UserFormationPurchase.objects.filter(
+        user_id=user_id,
+        formation_id=formation_id
+    ).exists()
+    if not has_purchased:
+        raise Http404("Formation not found")
+    
     formation = get_object_or_404(Formation, id=formation_id)
-    videos = formation.videos.all()
+    videos = formation.videos.all().order_by("ordre")
 
     # Adapter le retour pour le composant React
     return {
@@ -257,3 +273,58 @@ def callbackPayin(request):
             print('ok completed payin')
             # EMAIL
             return {"status": "success", "message": "Payment verified and user formation purchase created."}
+
+
+@router.post("/generate-presigned-url", summary="Générer une URL présignée pour upload")
+def get_presigned_url(request, file: UploadedFile = File(...)):
+    """
+    Endpoint pour générer une URL présignée permettant l'upload d'une vidéo.
+
+    :param file: Fichier à uploader.
+    :return: URL présignée, nom généré et type MIME du fichier.
+    """
+    try:
+        # Extraire le nom et l'extension du fichier
+        filename = file.name
+        if '.' not in filename:
+            raise ValueError("Le fichier doit avoir une extension valide (ex. .mp4).")
+        base_name, ext = filename.rsplit('.', 1)
+
+        # Valider l'extension
+        valid_extensions = {'mp4', 'mov', 'avi', 'mkv'}  # Ajouter les extensions valides ici
+        if ext.lower() not in valid_extensions:
+            raise ValueError(f"L'extension '{ext}' n'est pas autorisée. Extensions valides : {', '.join(valid_extensions)}.")
+
+        # Nettoyer le nom de base
+        base_name = re.sub(r'[^a-zA-Z0-9\s]', '', base_name)  # Supprimer les caractères spéciaux
+        base_name = base_name.replace(' ', '-')  # Remplacer les espaces par des tirets
+        base_name = base_name.lower()  # Convertir en minuscules
+
+        # Ajouter un UUID unique
+        unique_filename = f"{base_name}_{uuid.uuid4()}.{ext}"
+
+        # Encoder le nom pour l'URL
+        encoded_filename = quote(unique_filename)
+
+        # Déterminer le type MIME automatiquement
+        content_type = mimetypes.guess_type(filename)[0]
+        if not content_type:
+            raise ValueError("Impossible de déterminer le type MIME du fichier.")
+
+        # Générer l'URL présignée
+        presigned_url = generate_presigned_url_for_upload(
+            filename=encoded_filename,
+            content_type=content_type,
+            expires_in_minutes=60
+        )
+
+        return {
+            "url": presigned_url,
+            "filename": unique_filename,
+            "content_type": content_type
+        }
+
+    except ValueError as e:
+        return {
+            "error": str(e)
+        }
